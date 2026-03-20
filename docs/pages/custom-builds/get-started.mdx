@@ -1,95 +1,487 @@
----
-title: Get started with custom builds
-sidebar_title: Get started
-description: Learn how to extend EAS Build with custom builds.
----
+import React, { useState } from "react";
+import { View, TextInput, Text, Button } from "react-native";
 
-import { GithubIcon } from '@expo/styleguide-icons/custom/GithubIcon';
+export default function SearchScreen() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
 
-import { BoxLink } from '~/ui/components/BoxLink';
-import { Terminal } from '~/ui/components/Snippet';
-import { Step } from '~/ui/components/Step';
+  const handleSearch = async () => {
+    const users = await searchUsers(query);
+    const songs = await searchSongs(query);
+    setResults([...users, ...songs]);
+  };
 
-Custom builds allow customizing the build process for your project by running commands before, during, or after the build process. Customized builds can run from EAS CLI or when running builds in a React Native CI/CD pipeline, like with [EAS Workflows](/eas/workflows/get-started/).
+  return (
+    <View style={{ padding: 20 }}>
+      <TextInput
+        placeholder="Search users or music..."
+        value={query}
+        onChangeText={setQuery}
+        style={{ borderWidth: 1, marginBottom: 10 }}
+      />
+      <Button title="Search" onPress={handleSearch} />
 
-<Step label="1">
+      {results.map((item, index) => (
+        <Text key={index}>{item.username || item.title}</Text>
+      ))}
+    </View>
+  );
+}import React, { useEffect, useState } from "react";
+import { View, Text, FlatList } from "react-native";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "./firebase";
 
-## Create a custom build config
+export default function FeedScreen() {
+  const [songs, setSongs] = useState([]);
 
-To get started, create directories and a file named **.eas/build/hello-world.yml** at the same level as **eas.json**. The location and name of both directories are important for EAS Build to identify that a project contains a custom build config.
+  useEffect(() => {
+    const q = query(collection(db, "songs"), orderBy("createdAt", "desc"));
 
-Inside the **hello-world.yml**, you'll write your custom build config. The filename is unimportant; you can name it whatever you want. The only requirement is that the file extension uses **.yml**.
+    const unsub = onSnapshot(q, (snap) => {
+      setSongs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
-Add the following custom build config steps in the file:
+    return unsub;
+  }, []);
 
-```yaml .eas/build/hello-world.yml
-build:
-  name: Hello World!
-  steps:
-    - run: echo "Hello, world!"
-    # A built-in function (optional)
-```
+  return (
+    <FlatList
+      data={songs}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={{ padding: 20 }}>
+          <Text>{item.title || "Untitled"}</Text>
+          <Text>❤️ {item.likes || 0}</Text>
+        </View>
+      )}
+    />
+  );
+}import { Audio } from "expo-av";
+import React, { useState } from "react";
+import { View, Button } from "react-native";
 
-In a real world scenario, you will call a [built-in function](/custom-builds/schema/#built-in-eas-functions) to trigger the build.
+export default function RecordScreen() {
+  const [recording, setRecording] = useState(null);
 
-</Step>
+  const startRecording = async () => {
+    const perm = await Audio.requestPermissionsAsync();
+    if (!perm.granted) return;
 
-<Step label="2">
+    const rec = new Audio.Recording();
+    await rec.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+    await rec.startAsync();
+    setRecording(rec);
+  };
 
-## Add `config` property in eas.json
+  const stopRecording = async () => {
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    console.log("Recorded file:", uri);
+  };
 
-To use the custom build config, add the `config` property in **eas.json** under a build profile.
+  return (
+    <View>
+      <Button title="Start Recording" onPress={startRecording} />
+      <Button title="Stop Recording" onPress={stopRecording} />
+    </View>
+  );
+}const generateLyrics = async (prompt) => {
+  const response = await fetch("YOUR_AI_API_ENDPOINT", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt })
+  });
 
-Let's create a new [build profile](/build/eas-json/#build-profiles) called `test` under `build` to run the custom config from the **test.yml** file:
+  const data = await response.json();
+  return data.text;
+};import { addDoc, collection } from "firebase/firestore";
 
-```json eas.json
-{
-  "build": {
-    /* @hide ... */ /* @end */
-    "test": {
-      "config": "test.yml",
+const sendNotification = async (toUserId, message) => {
+  await addDoc(collection(db, "notifications"), {
+    toUserId,
+    message,
+    createdAt: Date.now(),
+    read: false
+  });
+};import React from "react";
+import { View, Button, Text } from "react-native";
+
+export default function LiveScreen() {
+  const startLive = () => {
+    console.log("Live started");
+    // Connect to streaming service here
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text>🔴 Live Streaming</Text>
+      <Button title="Go Live" onPress={startLive} />
+    </View>
+  );
+}const applyVoiceEffect = (effect) => {
+  console.log("Applying:", effect);
+  // Connect to audio processing library
+};import { addDoc, collection } from "firebase/firestore";
+import { db } from "./firebase";
+
+const scheduleUpload = async (data, scheduleTime) => {
+  await addDoc(collection(db, "scheduledPosts"), {
+    ...data,
+    scheduleTime,
+    posted: false
+  });
+};const switchAccount = (userId) => {
+  console.log("Switching to:", userId);
+};import { signOut } from "firebase/auth";
+import { auth } from "./firebase";
+
+const logout = async () => {
+  await signOut(auth);
+};import { Share } from "react-native";
+
+const shareApp = async () => {
+  await Share.share({
+    message: "Check out this app!"
+  });
+};import { addDoc, collection } from "firebase/firestore";
+import { db } from "./firebase";
+
+const sendCollabRequest = async (fromId, toId) => {
+  await addDoc(collection(db, "collabRequests"), {
+    fromId,
+    toId,
+    status: "pending"
+  });
+};const acceptCollab = async (requestId) => {
+  // Update request status
+  console.log("Collaboration accepted");
+  // Merge session / room
+};const createRoom = async (ownerId) => {
+  console.log("Room created");
+};import { addDoc, collection } from "firebase/firestore";
+
+const reportIssue = async (userId, issue) => {
+  await addDoc(collection(db, "reports"), {
+    userId,
+    issue,
+    createdAt: Date.now()
+  });
+};chats/{chatId}/messages/{messageId}import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const sendMessage = async (chatId, user, text) => {
+  await addDoc(collection(db, "chats", chatId, "messages"), {
+    text,
+    senderId: user.uid,
+    senderEmail: user.email,
+    createdAt: serverTimestamp()
+  });
+};import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const listenMessages = (chatId, setMessages) => {
+  const q = query(
+    collection(db, "chats", chatId, "messages"),
+    orderBy("createdAt", "asc")
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const msgs = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setMessages(msgs);
+  });
+};import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, Button, FlatList } from "react-native";
+import { sendMessage, listenMessages } from "./chatService";
+
+export default function ChatScreen({ route }) {
+  const { chatId, user } = route.params;
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+
+  useEffect(() => {
+    const unsub = listenMessages(chatId, setMessages);
+    return unsub;
+  }, []);
+
+  return (
+    <View style={{ flex: 1, padding: 10 }}>
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <Text>{item.senderEmail}: {item.text}</Text>
+        )}
+      />
+
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder="Message..."
+        style={{ borderWidth: 1, marginVertical: 10 }}
+      />
+
+      <Button
+        title="Send"
+        onPress={() => {
+          sendMessage(chatId, user, text);
+          setText("");
+        }}
+      />
+    </View>
+  );
+}import React from "react";
+import { View, Button, Text } from "react-native";
+
+export default function LiveScreen() {
+  const startLive = () => {
+    console.log("Starting live stream...");
+    // Connect to streaming SDK here
+  };
+
+  const joinLive = () => {
+    console.log("Joining live stream...");
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text>🎥 Live Streaming</Text>
+
+      <Button title="Go Live" onPress={startLive} />
+      <Button title="Join Live" onPress={joinLive} />
+    </View>
+  );
+}liveRooms/{roomId}import { doc, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+const createLiveRoom = async (userId) => {
+  await setDoc(doc(db, "liveRooms", userId), {
+    hostId: userId,
+    active: true,
+    createdAt: Date.now()
+  });
+};import { doc, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const createLiveRoom = async (user) => {
+  await setDoc(doc(db, "liveRooms", user.uid), {
+    hostId: user.uid,
+    hostEmail: user.email,
+    active: true,
+    createdAt: Date.now()
+  });
+};import React from "react";
+import { View, Button, Text } from "react-native";
+
+export default function LiveScreen() {
+  const startLive = async () => {
+    console.log("Starting live stream...");
+    // Here you would initialize Agora/WebRTC
+    // Join channel, publish camera + mic stream
+  };
+
+  const joinLive = () => {
+    console.log("Joining live stream...");
+    // Join existing room as viewer
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text>🎥 Live Streaming</Text>
+
+      <Button title="Go Live" onPress={startLive} />
+      <Button title="Join Live" onPress={joinLive} />
+    </View>
+  );
+}import { doc, setDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const setOnlineStatus = async (userId, status) => {
+  await setDoc(doc(db, "status", userId), {
+    online: status,
+    lastSeen: Date.now()
+  }, { merge: true });
+};import { doc, setDoc } from "firebase/firestore";
+
+export const setTyping = async (chatId, userId, isTyping) => {
+  await setDoc(doc(db, "typing", chatId, "users", userId), {
+    typing: isTyping
+  });
+};import { doc, updateDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const markAsSeen = async (chatId, messageId) => {
+  await updateDoc(doc(db, "chats", chatId, "messages", messageId), {
+    seen: true
+  });
+};import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, Button, FlatList } from "react-native";
+import { sendMessage, listenMessages } from "./chatService";
+import { setTyping } from "./typingService";
+
+export default function ChatScreen({ route }) {
+  const { chatId, user } = route.params;
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [typingUsers, setTypingUsers] = useState([]);
+
+  useEffect(() => {
+    const unsub = listenMessages(chatId, setMessages);
+    return unsub;
+  }, []);
+
+  const handleTyping = (val) => {
+    setText(val);
+    setTyping(chatId, user.uid, val.length > 0);
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 10 }}>
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <Text>
+            {item.senderEmail}: {item.text} {item.seen ? "✓" : ""}
+          </Text>
+        )}
+      />
+
+      <TextInput
+        value={text}
+        onChangeText={handleTyping}
+        placeholder="Message..."
+        style={{ borderWidth: 1, marginVertical: 10 }}
+      />
+
+      <Button
+        title="Send"
+        onPress={() => {
+          sendMessage(chatId, user, text);
+          setText("");
+          setTyping(chatId, user.uid, false);
+        }}
+      />
+
+      {typingUsers.length > 0 && (
+        <Text>Typing...</Text>
+      )}
+    </View>
+  );
+}npm install react-native-agoraimport React, { useEffect } from "react";
+import { View, Button } from "react-native";
+import RtcEngine from "react-native-agora";
+
+const APP_ID = "YOUR_AGORA_APP_ID";
+
+export default function LiveScreen() {
+  let engine;
+
+  const init = async () => {
+    engine = await RtcEngine.create(APP_ID);
+
+    await engine.enableVideo();
+    await engine.startPreview();
+  };
+
+  const joinChannel = async () => {
+    await engine.joinChannel(null, "testChannel", null, 0);
+  };
+
+  const leaveChannel = async () => {
+    await engine.leaveChannel();
+  };
+
+  useEffect(() => {
+    init();
+  }, []);
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Button title="Join Live" onPress={joinChannel} />
+      <Button title="Leave" onPress={leaveChannel} />
+    </View>
+  );
+}npx expo install expo-avimport React, { useEffect, useState } from "react";
+import { FlatList, View, Dimensions } from "react-native";
+import { Video } from "expo-av";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "./firebase";
+
+const { height } = Dimensions.get("window");
+
+export default function VideoFeed() {
+  const [videos, setVideos] = useState([]);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "videos"), (snap) => {
+      setVideos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return unsub;
+  }, []);
+
+  return (
+    <FlatList
+      data={videos}
+      pagingEnabled
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <View style={{ height }}>
+          <Video
+            source={{ uri: item.url }}
+            style={{ flex: 1 }}
+            shouldPlay
+            isLooping
+            resizeMode="cover"
+          />
+        </View>
+      )}
+    />
+  );
+}import { addDoc, collection } from "firebase/firestore";
+
+const uploadVideoPost = async (url, user) => {
+  await addDoc(collection(db, "videos"), {
+    url,
+    userId: user.uid,
+    createdAt: Date.now(),
+    likes: 0
+  });
+};{
+  "expo": {
+    "name": "YourAppName",
+    "slug": "your-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"],
+    "android": {
+      "package": "com.yourname.yourapp"
     },
-}
-```
+    "ios": {
+      "bundleIdentifier": "com.yourname.yourapp"
+    }
+  }
+}rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
 
-If you wish to use separate configs for each platform, you can create separate YAML config files for Android and iOS. For example:
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
 
-```json eas.json
-{
-  "build": {
-    /* @hide ... */ /* @end */
-    "test": {
-      "ios": {
-        "config": "hello-ios.yml",
-      },
-      "android": {
-        "config": "hello-android.yml",
-      }
-    },
-}
-```
+    match /messages/{docId} {
+      allow read, write: if request.auth != null;
+    }
 
-</Step>
-
-<Step label="3">
-
-## Run a build to test the custom build config
-
-To test the custom build config, run the following command:
-
-<Terminal cmd={['$ eas build -p android -e test']} />
-
-After the build is complete, you can verify that the `echo "Hello World!"` script was executed by checking the logs on the build's detail page.
-
-</Step>
-
-## Learn more
-
-Check out the example repository for more detailed examples:
-
-<BoxLink
-  title="Custom build example repository"
-  description="A custom EAS Build example that includes examples for custom builds such as setting up functions, using environment variables, uploading artifacts, and more."
-  Icon={GithubIcon}
-  href="https://github.com/expo/eas-custom-builds-example/tree/main"
-/>
+    match /songs/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}npm install -g eas-cli
+eas login
+eas build:configureeas build -p androideas build -p ios
